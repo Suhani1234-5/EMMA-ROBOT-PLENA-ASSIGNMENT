@@ -1,0 +1,31 @@
+{
+  "name": "baby-names-kaggle-hubspot",
+  "version": "1.0.0",
+  "description": "Download baby names from Kaggle, store in MySQL, send to HubSpot",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+  "pipeline": "npm run migrate && npm run download && npm run import && npm run sync",
+  "migrate": "tsx src/database/migrations/001-create-baby-names.ts",
+  "download": "tsx src/services/KaggleDownloaderService.ts",
+  "import": "tsx src/services/CsvImporterService.ts",
+  "sync": "tsx src/services/HubSpotSyncService.ts",
+  "build": "tsc",
+  "start": "node dist/index.js"
+},
+  "dependencies": {
+    "adm-zip": "^0.5.10",
+    "axios": "^1.6.0",
+    "csv-parser": "^3.0.0",
+    "dotenv": "^16.3.1",
+    "mysql2": "^3.6.5",
+    "playwright": "^1.40.0",
+    "sequelize": "^6.35.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.3.3"
+  }
+}
