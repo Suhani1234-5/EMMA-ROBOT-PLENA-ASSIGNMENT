@@ -59,38 +59,77 @@ export class KaggleDownloaderService {
       logger.info('Starting Kaggle download...');
       const browser = await chromium.launch({
         headless: process.env.NODE_ENV === 'production',
+        args: [
+          '--disable-blink-features=AutomationControlled',
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+        ],
       });
 
-      const context = await browser.newContext({ acceptDownloads: true });
+      const context = await browser.newContext({
+        acceptDownloads: true,
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      });
       const page = await context.newPage();
+
+      // Add request interception to handle blocked resources
+      await page.route('**/*', (route) => {
+        const url = route.request().url();
+        // Allow main requests and important resources
+        if (url.includes('kaggle.com') || url.includes('.js') || url.includes('.css') || url.includes('analytics')) {
+          route.continue().catch(() => route.abort());
+        } else {
+          route.abort();
+        }
+      });
 
       try {
         logger.info('Navigating to Kaggle login page...');
         await page.goto('https://www.kaggle.com/account/login?phase=emailSignIn', {
-          waitUntil: 'networkidle',
-          timeout: 60000, // 60 seconds - page may load slowly with ads
+          waitUntil: 'domcontentloaded',
+          timeout: 60000,
         });
 
         logger.info('Entering credentials...');
-        await page.waitForSelector('input[name="email"]', { timeout: 30000 });   // 30 seconds - form usually appears within 5-10s
+        await page.waitForSelector('input[name="email"]', { timeout: 30000 });
         await page.fill('input[name="email"]', this.email);
 
         await page.waitForSelector('input[name="password"]', { timeout: 30000 });
         await page.fill('input[name="password"]', this.password);
 
         await page.click('button[type="submit"]');
-        await page.waitForLoadState('networkidle');
+        
+        // Wait for navigation to complete after login
+        try {
+          await page.waitForURL('**/account/login/success', { timeout: 30000 }).catch(() => null);
+        } catch {
+          // Login redirect may vary
+        }
+        
+        await page.waitForLoadState('domcontentloaded');
         logger.success('Logged in to Kaggle');
 
+        // Add small delay to ensure session is established
+        await page.waitForTimeout(2000);
+
         logger.info('Navigating to dataset page...');
-        await page.goto(this.datasetUrl, { waitUntil: 'networkidle', timeout: 60000 });// 60 seconds - larger dataset pages may take time
+        await page.goto(this.datasetUrl, {
+          waitUntil: 'domcontentloaded',
+          timeout: 60000,
+        });
 
         logger.info('Waiting for download button...');
-        await page.waitForSelector('button:has-text("Download")', { timeout: 30000 });    // 30 seconds - button appears after page loads
+        
+        // Try multiple selectors for the download button
+        const downloadButton = await page.locator(
+          'button:has-text("Download"), a:has-text("Download"), [data-test-id="download-button"]'
+        ).first();
+        
+        await downloadButton.waitFor({ timeout: 30000 });
 
         const [download] = await Promise.all([
-          page.waitForEvent('download', { timeout: 60000 }), // 60 seconds - file transfer may take time
-          page.click('button:has-text("Download")'),
+          page.waitForEvent('download', { timeout: 60000 }),
+          downloadButton.click(),
         ]);
 
         const filePath = path.join(this.downloadDir, download.suggestedFilename());
