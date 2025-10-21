@@ -33,7 +33,7 @@ The data is sourced from official US birth certificate records and provides insi
 ### 1. Clone the Repository
 
 ```bash
-git clone 
+git clone https://github.com/Suhani1234-5/EMMA-ROBOT-PLENA-ASSIGNMENT.git
 cd baby-names-pipeline
 ```
 
@@ -126,7 +126,7 @@ This will:
 ### Run All Steps
 
 ```bash
-npm run dev
+npm run pipeline
 ```
 
 Executes the complete pipeline sequentially:
@@ -199,7 +199,7 @@ Add these to your `package.json`:
 ```json
 {
   "scripts": {
-    "dev": "npm run migrate && npm run download && npm run import && npm run sync",
+    "pipeline": "npm run migrate && npm run download && npm run import && npm run sync",
     "migrate": "tsx src/database/migrations/001-create-baby-names.ts",
     "download": "tsx src/services/KaggleDownloaderService.ts",
     "import": "tsx src/services/CsvImporterService.ts",
